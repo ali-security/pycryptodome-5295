@@ -1,11 +1,30 @@
 name: Wheels
 
 on:
-  push:
-    tags:
-    - '*'
+  workflow_dispatch:
 
 jobs:
+  build_source:
+    name: Build source package
+    runs-on: [ ubuntu-latest ]
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: MatteoH2O1999/setup-python@v4
+        name: Install Python
+        with:
+          python-version: '3.5'
+
+      - name: Uninstall setuptools (forces use of distutils)
+        run: pip uninstall -y setuptools
+
+      - name: Build source package (.tar.gz)
+        run: python setup.py sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: ./dist/*.tar.gz
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -14,21 +33,19 @@ jobs:
       CIBW_TEST_SKIP: "*"
     strategy:
       matrix:
-        os: [ubuntu-18.04, windows-latest, macos-latest]
-
-    if: github.actor == 'Legrandin'
+        os: [ubuntu-22.04, windows-latest, macos-13, ubuntu-22.04-arm]
 
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-python@v2
+      - uses: MatteoH2O1999/setup-python@v4
         name: Install Python
         with:
           python-version: '3.9'
 
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel==1.12.0
+          python -m pip install --index-url 'https://:2021-09-24T22:27:02.879902Z@time-machines-pypi.sealsecurity.io/' cibuildwheel==1.12.0
 
       - name: Install MSVC
         if: runner.os == 'Windows'
@@ -62,9 +79,9 @@ jobs:
           DISTUTILS_USE_SDK: 1
           MSSdk: 1
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
   test_wheels:
@@ -73,8 +90,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, windows-latest, macos-latest]
-        python-version: ['2.7', '3.6', '3.7', '3.8', '3.9', 'pypy-2.7', 'pypy-3.6']
+        os: [ubuntu-22.04, windows-latest, macos-13]
+        python-version: ['2.7', '3.6', '3.7', '3.8', '3.9', 'pypy-2.7', 'pypy-3.8']
         exclude:
           - {os: "windows-latest", python-version: "pypy-2.7"}
 
@@ -84,14 +101,14 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: MatteoH2O1999/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Display Python version
         run: python -c "from __future__ import print_function; import sys; print(sys.version)"
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: wheels
           path: wheels/
