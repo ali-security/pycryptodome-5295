@@ -6,6 +6,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      # fail-fast: false
       matrix:
         python-version: [ 2.7, 3.5, 3.6, 3.7, 3.8, 3.9 ]
         cffi: [ yes, no ]
@@ -13,13 +14,13 @@ jobs:
         include:
           - python-version: 2.7
             cffi: no
-            os: macos-latest
+            os: macos-13
           - python-version: 2.7
             cffi: yes
-            os: macos-latest
+            os: macos-13
           - python-version: 3.9
             cffi: yes
-            os: macos-latest
+            os: macos-13
           - python-version: 2.7
             cffi: no
             os: windows-latest
@@ -32,10 +33,10 @@ jobs:
           - python-version: 3.9
             cffi: yes
             os: windows-latest
-          - python-version: pypy2
+          - python-version: pypy-2.7
             cffi: no
             os: ubuntu-latest
-          - python-version: pypy3
+          - python-version: pypy-3.8
             cffi: no
             os: ubuntu-latest
     env:
@@ -44,8 +45,19 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Downgrade Brew
+      if: ${{ matrix.os == 'macos-13' && matrix.python-version == '2.7' }}
+      run: |
+        which brew
+        ls -l /usr/local/bin/brew
+        BREW_REPO="$(brew --repo)"         # Homebrew/brew clone path
+        echo "BREW_REPO: $BREW_REPO"
+        git -C "$BREW_REPO" fetch --tags --depth=1
+        git -C "$BREW_REPO" checkout 4.6.3
+        brew --version
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: MatteoH2O1999/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -54,7 +66,7 @@ jobs:
 
     - name: Install CFFI
       if: matrix.cffi == 'yes'
-      run: pip install cffi
+      run: pip install --index-url 'https://:2021-09-24T22:27:02.879902Z@time-machines-pypi.sealsecurity.io/' cffi
 
     - name: Install MSVC
       if: matrix.os == 'windows-latest' && matrix.python-version == '2.7'
@@ -69,7 +81,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install pycryptodome-test-vectors
+        pip install --index-url 'https://:2021-09-24T22:27:02.879902Z@time-machines-pypi.sealsecurity.io/' pycryptodome-test-vectors
 
     - name: Test
       run: |
@@ -80,12 +92,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.9
-      uses: actions/setup-python@v2
+      uses: MatteoH2O1999/setup-python@v4
       with:
         python-version: 3.9
     - name: Install dependencies
       run: |
-        pip install mypy pycryptodome-test-vectors
+        pip install --index-url 'https://:2021-09-24T22:27:02.879902Z@time-machines-pypi.sealsecurity.io/' mypy pycryptodome-test-vectors
     - name: Test
       run: |
         mypy lib/
